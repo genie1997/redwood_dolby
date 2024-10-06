@@ -112,6 +112,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     DSPVolumeSynchronizer
 
+# Dolby settings app
+PRODUCT_PACKAGES += \
+    XiaomiDolby
+
 ifeq ($(TARGET_INCLUDES_OEM_App),true)
 # Motorola bloatwares
 PRODUCT_PACKAGES += \
