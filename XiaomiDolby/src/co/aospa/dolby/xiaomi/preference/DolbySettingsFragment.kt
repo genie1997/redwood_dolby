@@ -12,13 +12,12 @@ import android.media.AudioDeviceInfo
 import android.media.AudioManager
 import android.os.Bundle
 import android.os.Handler
-import android.widget.CompoundButton
-import android.widget.CompoundButton.OnCheckedChangeListener
+import android.os.Looper
 import android.widget.Toast
 import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.Preference.OnPreferenceChangeListener
-import androidx.preference.PreferenceFragment
+import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SwitchPreferenceCompat
 import co.aospa.dolby.xiaomi.DolbyConstants
 import co.aospa.dolby.xiaomi.DolbyConstants.Companion.PREF_BASS
@@ -37,8 +36,8 @@ import co.aospa.dolby.xiaomi.DolbyController
 import co.aospa.dolby.xiaomi.R
 import com.android.settingslib.widget.MainSwitchPreference
 
-class DolbySettingsFragment : PreferenceFragment(),
-    OnPreferenceChangeListener, CompoundButton.OnCheckedChangeListener {
+class DolbySettingsFragment : PreferenceFragmentCompat(),
+    OnPreferenceChangeListener {
 
     private val switchBar by lazy {
         findPreference<MainSwitchPreference>(PREF_ENABLE)!!
@@ -74,9 +73,9 @@ class DolbySettingsFragment : PreferenceFragment(),
         findPreference<Preference>(PREF_RESET)!!
     }
 
-    private val dolbyController by lazy { DolbyController.getInstance(context) }
-    private val audioManager by lazy { context.getSystemService(AudioManager::class.java) }
-    private val handler = Handler()
+    private val dolbyController by lazy { DolbyController.getInstance(requireContext()) }
+    private val audioManager by lazy { requireContext().getSystemService(AudioManager::class.java) }
+    private val handler = Handler(Looper.getMainLooper())
 
     private var isOnSpeaker = true
         set(value) {
@@ -100,18 +99,28 @@ class DolbySettingsFragment : PreferenceFragment(),
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         dlog(TAG, "onCreatePreferences")
-        addPreferencesFromResource(R.xml.dolby_settings)
+        setPreferencesFromResource(R.xml.dolby_settings, rootKey)
 
         val profile = dolbyController.profile
-        preferenceManager.preferenceDataStore = DolbyPreferenceStore(context).also {
+        preferenceManager.preferenceDataStore = DolbyPreferenceStore(requireContext()).also {
             it.profile = profile
         }
 
         val dsOn = dolbyController.dsOn
-        switchBar.addOnSwitchChangeListener(this)
+        switchBar.onPreferenceChangeListener = this
         switchBar.setChecked(dsOn)
 
         profilePref.onPreferenceChangeListener = this
+        profilePref.setEnabled(dsOn)
+        profilePref.apply {
+            if (entryValues.contains(profile.toString())) {
+                summary = "%s"
+                value = profile.toString()
+            } else {
+                summary = requireContext().getString(R.string.dolby_unknown)
+            }
+        }
+
         hpVirtPref.onPreferenceChangeListener = this
         spkVirtPref.onPreferenceChangeListener = this
         stereoPref.onPreferenceChangeListener = this
@@ -124,8 +133,8 @@ class DolbySettingsFragment : PreferenceFragment(),
             dolbyController.resetProfileSpecificSettings()
             updateProfileSpecificPrefs()
             Toast.makeText(
-                context,
-                context.getString(R.string.dolby_reset_profile_toast, profilePref.summary),
+                requireContext(),
+                requireContext().getString(R.string.dolby_reset_profile_toast, profilePref.summary),
                 Toast.LENGTH_SHORT
             ).show()
             true
@@ -185,15 +194,16 @@ class DolbySettingsFragment : PreferenceFragment(),
                 dolbyController.setIeqPreset(newValue.toString().toInt())
             }
 
+            PREF_ENABLE -> {
+                val enabled = newValue as Boolean
+                dolbyController.dsOn = enabled
+                profilePref.setEnabled(enabled)
+                updateProfileSpecificPrefs()
+            }
+
             else -> return false
         }
         return true
-    }
-
-    override fun onCheckedChanged(buttonView: CompoundButton, isChecked: Boolean) {
-        dlog(TAG, "onCheckedChanged($isChecked)")
-        dolbyController.dsOn = isChecked
-        updateProfileSpecificPrefs()
     }
 
     private fun updateSpeakerState() {
@@ -202,8 +212,8 @@ class DolbySettingsFragment : PreferenceFragment(),
     }
 
     private fun updateProfileSpecificPrefs() {
-        val unknownRes = context.getString(R.string.dolby_unknown)
-        val headphoneRes = context.getString(R.string.dolby_connect_headphones)
+        val unknownRes = requireContext().getString(R.string.dolby_unknown)
+        val headphoneRes = requireContext().getString(R.string.dolby_connect_headphones)
         val dsOn = dolbyController.dsOn
         val currentProfile = dolbyController.profile
 
@@ -211,16 +221,6 @@ class DolbySettingsFragment : PreferenceFragment(),
             TAG, "updateProfileSpecificPrefs: dsOn=$dsOn currentProfile=$currentProfile"
                     + " isOnSpeaker=$isOnSpeaker"
         )
-
-        profilePref.setEnabled(dsOn)
-        profilePref.apply {
-            if (entryValues.contains(currentProfile.toString())) {
-                summary = "%s"
-                value = currentProfile.toString()
-            } else {
-                summary = context.getString(R.string.dolby_unknown)
-            }
-        }
 
         val enable = dsOn && (currentProfile != -1)
         presetPref.setEnabled(enable)
