@@ -1,5 +1,8 @@
-Motorola Dolby
-==============
+redwood Dolby (Infinity-X)
+==========================
+
+This branch ships Dolby Atmos and the spatializer with the in-tree XiaomiDolby app.
+No Dolby Vision, no Motorola apps. Built on the moto Dolby engine, adapted for redwood on Infinity-X.
 
 Getting Started
 ---------------
