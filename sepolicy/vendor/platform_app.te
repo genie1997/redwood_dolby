@@ -1,2 +1,3 @@
-# Dolby
+# Dolby, apps targeting SDK 36 run as platform_app_36
 hal_client_domain(platform_app, hal_dms)
+hal_client_domain(platform_app_36, hal_dms)
